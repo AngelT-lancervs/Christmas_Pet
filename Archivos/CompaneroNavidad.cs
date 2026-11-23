@@ -2353,28 +2353,17 @@ namespace NavidadCompanero
                 g.DrawLine(tabbyStripe, 17, -65 + sleepDrop, 22, -65 + sleepDrop);
             }
 
-            // Ojos azul hielo / celeste cristalino (como los del gatito de la foto)
+            // Ojos azul zafiro redonditos como en el diseño anterior
             DrawCuteEyesAndBlush(g, 2, -67 + sleepDrop, 11);
             if (!sleeping && state != PetState.Celebrating && (((int)animTick % 110) >= 5))
             {
-                using (SolidBrush outerBlue = new SolidBrush(Color.FromArgb(95, 158, 215)))
-                using (SolidBrush innerBlue = new SolidBrush(Color.FromArgb(155, 205, 248)))
-                using (SolidBrush pupil = new SolidBrush(Color.FromArgb(25, 30, 40)))
+                using (SolidBrush blueIris = new SolidBrush(Color.FromArgb(65, 165, 245)))
                 using (SolidBrush shineBig = new SolidBrush(Color.White))
                 {
-                    float lx = 2 - 11, rx = 2 + 11, ey = -67 + sleepDrop;
-                    g.FillEllipse(outerBlue, lx - 4.2f, ey - 3.5f, 8.4f, 8.5f);
-                    g.FillEllipse(outerBlue, rx - 4.2f, ey - 3.5f, 8.4f, 8.5f);
-
-                    g.FillEllipse(innerBlue, lx - 3.0f, ey - 1.5f, 6.0f, 5.5f);
-                    g.FillEllipse(innerBlue, rx - 3.0f, ey - 1.5f, 6.0f, 5.5f);
-
-                    // Pupila vertical sutil de gato
-                    g.FillEllipse(pupil, lx - 1.3f, ey - 2.2f, 2.6f, 5.2f);
-                    g.FillEllipse(pupil, rx - 1.3f, ey - 2.2f, 2.6f, 5.2f);
-
-                    g.FillEllipse(shineBig, lx - 3.2f, ey - 4.0f, 3.8f, 3.8f);
-                    g.FillEllipse(shineBig, rx - 3.2f, ey - 4.0f, 3.8f, 3.8f);
+                    g.FillEllipse(blueIris, 2 - 11 - 3.5f, -67 + sleepDrop - 1f, 7f, 6.5f);
+                    g.FillEllipse(blueIris, 2 + 11 - 3.5f, -67 + sleepDrop - 1f, 7f, 6.5f);
+                    g.FillEllipse(shineBig, 2 - 11 - 3f, -67 + sleepDrop - 4f, 4.2f, 4.2f);
+                    g.FillEllipse(shineBig, 2 + 11 - 3f, -67 + sleepDrop - 4f, 4.2f, 4.2f);
                 }
             }
 
