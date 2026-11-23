@@ -1,0 +1,6 @@
+@echo off
+chcp 65001 >nul
+echo Cerrando Companero Navideno en ejecucion...
+taskkill /F /IM programadenavidadconunnombreinnecesariamentelargo.exe >nul 2>&1
+echo Eliminando del inicio automatico de Windows...
+"%~dp0..\programadenavidadconunnombreinnecesariamentelargo.exe" --uninstall
