@@ -2261,7 +2261,7 @@ namespace NavidadCompanero
             DrawSantaHat(g, 0, -76 + sleepDrop, 0.95f);
         }
 
-        // 4. GATITO SIAMÉS CON GORRO (Pelaje crema claro, orejitas/patitas/colita/máscara chocolate oscuro y ojitos azul zafiro)
+        // 4. GATITO SIAMÉS ATIGRADO / LYNX POINT (Blanco/crema claro, rayitas gris-topo en frente y mejillas, orejitas grisáceas y ojos azul cielo)
         private void DrawCat(Graphics g, float walk)
         {
             bool sleeping = (state == PetState.Sleeping);
@@ -2270,10 +2270,10 @@ namespace NavidadCompanero
             float legR = -walk * 5f;
             float sleepDrop = sleeping ? 14f : 0f;
 
-            // Colita chocolate oscuro de siamés (o envolviendo el cuerpo si está durmiendo hecho bolita)
+            // Colita gris-topo claro con punta más oscura (Lynx point)
             float tailWave = sleeping ? 0f : (float)Math.Sin(animTick * 0.22f) * 9f;
-            using (Pen tailBorder = new Pen(Color.FromArgb(52, 34, 24), 9f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            using (Pen tailPen = new Pen(Color.FromArgb(88, 60, 44), 6.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen tailBorder = new Pen(Color.FromArgb(115, 108, 102), 9f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen tailPen = new Pen(Color.FromArgb(182, 174, 166), 6.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
                 if (sleeping)
                 {
@@ -2289,91 +2289,119 @@ namespace NavidadCompanero
 
             RectangleF bodyRect = new RectangleF(-22, -48 + sleepDrop, 44, 42 - sleepDrop * 0.35f);
             using (LinearGradientBrush furGrad = new LinearGradientBrush(bodyRect,
-                Color.FromArgb(248, 240, 225), Color.FromArgb(228, 212, 190), LinearGradientMode.Vertical))
-            using (SolidBrush creamBelly = new SolidBrush(Color.FromArgb(254, 250, 242)))
-            using (SolidBrush sealPoint = new SolidBrush(Color.FromArgb(86, 58, 42)))
-            using (SolidBrush innerEar = new SolidBrush(Color.FromArgb(145, 102, 85)))
-            using (Pen border = new Pen(Color.FromArgb(115, 88, 68), 1.9f))
-            using (Pen darkBorder = new Pen(Color.FromArgb(55, 36, 26), 1.9f))
+                Color.FromArgb(250, 248, 244), Color.FromArgb(234, 228, 220), LinearGradientMode.Vertical))
+            using (SolidBrush pureWhite = new SolidBrush(Color.FromArgb(255, 254, 252)))
+            using (SolidBrush earTaupe = new SolidBrush(Color.FromArgb(172, 162, 152)))
+            using (SolidBrush innerEar = new SolidBrush(Color.FromArgb(228, 185, 182)))
+            using (Pen border = new Pen(Color.FromArgb(148, 138, 128), 1.8f))
+            using (Pen tabbyStripe = new Pen(Color.FromArgb(185, 118, 110, 104), 2.1f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
-                // Patitas ("botitas" marrón oscuro típicas del siamés)
+                // Patitas blancas con suave sombra grisácea
                 if (!sleeping)
                 {
-                    g.FillEllipse(sealPoint, -16 + legL, -10, 13, 10);
-                    g.DrawEllipse(darkBorder, -16 + legL, -10, 13, 10);
-                    g.FillEllipse(sealPoint, 4 + legR, -10, 13, 10);
-                    g.DrawEllipse(darkBorder, 4 + legR, -10, 13, 10);
+                    g.FillEllipse(pureWhite, -16 + legL, -10, 13, 10);
+                    g.DrawEllipse(border, -16 + legL, -10, 13, 10);
+                    g.FillEllipse(pureWhite, 4 + legR, -10, 13, 10);
+                    g.DrawEllipse(border, 4 + legR, -10, 13, 10);
                 }
 
-                // Cuerpo crema claro
+                // Cuerpo blanco marfil con pechito blanco puro
                 g.FillEllipse(furGrad, bodyRect);
                 g.DrawEllipse(border, bodyRect);
-                g.FillEllipse(creamBelly, -12, -42 + sleepDrop, 26, 28 - sleepDrop * 0.3f);
+                g.FillEllipse(pureWhite, -13, -43 + sleepDrop, 28, 29 - sleepDrop * 0.3f);
 
-                // Orejitas marrón chocolate oscuro (Seal Point)
+                // Rayitas atigradas muy sutiles en los costados del cuerpo
+                g.DrawLine(tabbyStripe, -20, -32 + sleepDrop, -15, -30 + sleepDrop);
+                g.DrawLine(tabbyStripe, 15, -30 + sleepDrop, 20, -32 + sleepDrop);
+
+                // Orejitas gris-topo suave con interior rosado pálido (como en la foto)
                 PointF[] earL = { new PointF(-22, -74 + sleepDrop), new PointF(-19, -99 + sleepDrop), new PointF(-4, -84 + sleepDrop) };
                 PointF[] earR = { new PointF(22, -74 + sleepDrop), new PointF(19, -99 + sleepDrop), new PointF(4, -84 + sleepDrop) };
                 PointF[] inEarL = { new PointF(-19, -76 + sleepDrop), new PointF(-17, -93 + sleepDrop), new PointF(-8, -83 + sleepDrop) };
                 PointF[] inEarR = { new PointF(19, -76 + sleepDrop), new PointF(17, -93 + sleepDrop), new PointF(8, -83 + sleepDrop) };
 
-                g.FillPolygon(sealPoint, earL);
+                g.FillPolygon(earTaupe, earL);
                 g.FillPolygon(innerEar, inEarL);
-                g.DrawPolygon(darkBorder, earL);
+                g.DrawPolygon(border, earL);
 
-                g.FillPolygon(sealPoint, earR);
+                g.FillPolygon(earTaupe, earR);
                 g.FillPolygon(innerEar, inEarR);
-                g.DrawPolygon(darkBorder, earR);
+                g.DrawPolygon(border, earR);
 
-                // Cabeza crema claro
+                // Cabeza blanca/crema sin mancha negra pesada
                 RectangleF headRect = new RectangleF(-24, -88 + sleepDrop, 48, 44);
                 g.FillEllipse(furGrad, headRect);
                 g.DrawEllipse(border, headRect);
 
-                // Máscara facial chocolate suave en el centro de la carita (típica del gato siamés)
-                RectangleF maskRect = new RectangleF(-16, -75 + sleepDrop, 35, 23);
-                using (GraphicsPath maskPath = new GraphicsPath())
+                // Hocico blanco luminoso y puente de la nariz ligeramente arena/beige (exacto a la foto)
+                using (SolidBrush noseBridge = new SolidBrush(Color.FromArgb(115, 195, 170, 148)))
                 {
-                    maskPath.AddEllipse(maskRect);
-                    using (PathGradientBrush maskBrush = new PathGradientBrush(maskPath))
-                    {
-                        maskBrush.CenterPoint = new PointF(2, -64 + sleepDrop);
-                        maskBrush.CenterColor = Color.FromArgb(225, 82, 54, 38);
-                        maskBrush.SurroundColors = new Color[] { Color.FromArgb(0, 82, 54, 38) };
-                        g.FillPath(maskBrush, maskPath);
-                    }
+                    g.FillEllipse(noseBridge, -3, -72 + sleepDrop, 10, 11);
                 }
+                g.FillEllipse(pureWhite, -11, -63 + sleepDrop, 13, 10);
+                g.FillEllipse(pureWhite, 0, -63 + sleepDrop, 13, 10);
+
+                // Rayitas atigradas (Lynx Tabby) en la frente ("M") y en las mejillas junto a los ojos
+                g.DrawLine(tabbyStripe, -5, -83 + sleepDrop, -3, -75 + sleepDrop);
+                g.DrawLine(tabbyStripe, 2, -84 + sleepDrop, 2, -75 + sleepDrop);
+                g.DrawLine(tabbyStripe, 9, -83 + sleepDrop, 7, -75 + sleepDrop);
+
+                // Líneas finas desde el borde exterior de los ojos hacia las sienes/mejillas
+                g.DrawLine(tabbyStripe, -22, -70 + sleepDrop, -15, -69 + sleepDrop);
+                g.DrawLine(tabbyStripe, -21, -65 + sleepDrop, -15, -65 + sleepDrop);
+                g.DrawLine(tabbyStripe, 17, -69 + sleepDrop, 23, -70 + sleepDrop);
+                g.DrawLine(tabbyStripe, 17, -65 + sleepDrop, 22, -65 + sleepDrop);
             }
 
-            // Ojos azul zafiro característicos del gato siamés
+            // Ojos azul hielo / celeste cristalino (como los del gatito de la foto)
             DrawCuteEyesAndBlush(g, 2, -67 + sleepDrop, 11);
             if (!sleeping && state != PetState.Celebrating && (((int)animTick % 110) >= 5))
             {
-                using (SolidBrush blueIris = new SolidBrush(Color.FromArgb(65, 165, 245)))
+                using (SolidBrush outerBlue = new SolidBrush(Color.FromArgb(95, 158, 215)))
+                using (SolidBrush innerBlue = new SolidBrush(Color.FromArgb(155, 205, 248)))
+                using (SolidBrush pupil = new SolidBrush(Color.FromArgb(25, 30, 40)))
                 using (SolidBrush shineBig = new SolidBrush(Color.White))
                 {
-                    g.FillEllipse(blueIris, 2 - 11 - 3.5f, -67 + sleepDrop - 1f, 7f, 6.5f);
-                    g.FillEllipse(blueIris, 2 + 11 - 3.5f, -67 + sleepDrop - 1f, 7f, 6.5f);
-                    g.FillEllipse(shineBig, 2 - 11 - 3f, -67 + sleepDrop - 4f, 4.2f, 4.2f);
-                    g.FillEllipse(shineBig, 2 + 11 - 3f, -67 + sleepDrop - 4f, 4.2f, 4.2f);
+                    float lx = 2 - 11, rx = 2 + 11, ey = -67 + sleepDrop;
+                    g.FillEllipse(outerBlue, lx - 4.2f, ey - 3.5f, 8.4f, 8.5f);
+                    g.FillEllipse(outerBlue, rx - 4.2f, ey - 3.5f, 8.4f, 8.5f);
+
+                    g.FillEllipse(innerBlue, lx - 3.0f, ey - 1.5f, 6.0f, 5.5f);
+                    g.FillEllipse(innerBlue, rx - 3.0f, ey - 1.5f, 6.0f, 5.5f);
+
+                    // Pupila vertical sutil de gato
+                    g.FillEllipse(pupil, lx - 1.3f, ey - 2.2f, 2.6f, 5.2f);
+                    g.FillEllipse(pupil, rx - 1.3f, ey - 2.2f, 2.6f, 5.2f);
+
+                    g.FillEllipse(shineBig, lx - 3.2f, ey - 4.0f, 3.8f, 3.8f);
+                    g.FillEllipse(shineBig, rx - 3.2f, ey - 4.0f, 3.8f, 3.8f);
                 }
             }
 
-            // Naricita chocolate/rosada, boquita ":3" y bigotes claros
-            using (SolidBrush noseCol = new SolidBrush(Color.FromArgb(48, 30, 24)))
-            using (Pen mouthPen = new Pen(Color.FromArgb(225, 205, 185), 1.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            using (Pen whisker = new Pen(Color.FromArgb(145, 120, 98), 1.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            // Naricita oscura/terracota con borde negro, boquita ":3", puntitos de bigotes y bigotes blancos
+            using (SolidBrush noseCol = new SolidBrush(Color.FromArgb(115, 78, 72)))
+            using (Pen darkNosePen = new Pen(Color.FromArgb(58, 42, 38), 1.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (SolidBrush dotBrush = new SolidBrush(Color.FromArgb(140, 95, 82, 74)))
+            using (Pen whisker = new Pen(Color.FromArgb(210, 245, 245, 245), 1.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
-                g.FillEllipse(noseCol, 0, -63 + sleepDrop, 6, 4.5f);
-                g.DrawArc(mouthPen, -4, -60 + sleepDrop, 6, 5, 0, 180);
-                g.DrawArc(mouthPen, 2, -60 + sleepDrop, 6, 5, 0, 180);
+                g.FillEllipse(noseCol, -0.5f, -63.5f + sleepDrop, 7f, 4.5f);
+                g.DrawEllipse(darkNosePen, -0.5f, -63.5f + sleepDrop, 7f, 4.5f);
+                g.DrawArc(darkNosePen, -4, -60 + sleepDrop, 6, 4.5f, 0, 180);
+                g.DrawArc(darkNosePen, 2, -60 + sleepDrop, 6, 4.5f, 0, 180);
 
-                g.DrawLine(whisker, -16, -64 + sleepDrop, -30, -66 + sleepDrop);
-                g.DrawLine(whisker, -16, -60 + sleepDrop, -30, -59 + sleepDrop);
-                g.DrawLine(whisker, 20, -64 + sleepDrop, 32, -66 + sleepDrop);
-                g.DrawLine(whisker, 20, -60 + sleepDrop, 32, -59 + sleepDrop);
+                // Puntitos de los bigotes en el hocico blanco (como en la foto)
+                g.FillEllipse(dotBrush, -6.5f, -59.5f + sleepDrop, 2f, 2f);
+                g.FillEllipse(dotBrush, -9.0f, -60.5f + sleepDrop, 2f, 2f);
+                g.FillEllipse(dotBrush, 8.5f, -59.5f + sleepDrop, 2f, 2f);
+                g.FillEllipse(dotBrush, 11.0f, -60.5f + sleepDrop, 2f, 2f);
+
+                g.DrawLine(whisker, -15, -63 + sleepDrop, -30, -65 + sleepDrop);
+                g.DrawLine(whisker, -15, -59 + sleepDrop, -30, -58 + sleepDrop);
+                g.DrawLine(whisker, 19, -63 + sleepDrop, 32, -65 + sleepDrop);
+                g.DrawLine(whisker, 19, -59 + sleepDrop, 32, -58 + sleepDrop);
             }
 
-            // Moño rojo y verde navideño
+            // Moño verde y rojo navideño
             using (SolidBrush green = new SolidBrush(Color.FromArgb(35, 165, 70)))
             using (SolidBrush red = new SolidBrush(Color.FromArgb(228, 42, 48)))
             {
@@ -2386,16 +2414,16 @@ namespace NavidadCompanero
 
             DrawSantaHat(g, 0, -86 + sleepDrop, 0.9f);
 
-            // Truco específico del Gatito Siamés: Levanta su patita chocolate oscuro con almohadillas rosadas saludando ("Maneki-neko")
+            // Truco específico del Gatito: Levanta su patita blanca con almohadillas rosadas saludando ("Maneki-neko")
             if (trick)
             {
                 float waveY = (float)Math.Sin(animTick * 0.55f) * 5f;
-                using (SolidBrush pawSeal = new SolidBrush(Color.FromArgb(86, 58, 42)))
-                using (Pen pawBorder = new Pen(Color.FromArgb(52, 34, 24), 1.8f))
-                using (SolidBrush padPink = new SolidBrush(Color.FromArgb(235, 155, 165)))
+                using (SolidBrush pawWhite = new SolidBrush(Color.FromArgb(252, 250, 246)))
+                using (Pen pawBorder = new Pen(Color.FromArgb(148, 138, 128), 1.8f))
+                using (SolidBrush padPink = new SolidBrush(Color.FromArgb(235, 165, 172)))
                 {
                     RectangleF pawRect = new RectangleF(14, -52 + waveY, 13, 15);
-                    g.FillEllipse(pawSeal, pawRect);
+                    g.FillEllipse(pawWhite, pawRect);
                     g.DrawEllipse(pawBorder, pawRect);
                     // Almohadilla rosada kawaii
                     g.FillEllipse(padPink, 18, -44 + waveY, 5.5f, 4.5f);
