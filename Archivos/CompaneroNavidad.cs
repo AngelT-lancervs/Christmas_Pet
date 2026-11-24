@@ -112,6 +112,7 @@ namespace NavidadCompanero
                     lines.Add("Name_" + kv.Key + "=" + kv.Value);
                 }
                 File.WriteAllLines(ConfigPath, lines.ToArray());
+                StartupManager.SyncConfigToNetworkIfAvailable(ConfigPath);
             }
             catch { }
         }
@@ -233,7 +234,7 @@ namespace NavidadCompanero
         }
     }
 
-    // Gestor de Auto-Inicio en Windows (Triple respaldo: Registro Run + Carpeta shell:startup + StartupApproved)
+    // Gestor de Auto-Inicio en Windows (Caché local en disco C: para soportar unidades de red como U: + shell:startup + Run)
     public static class StartupManager
     {
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -246,6 +247,15 @@ namespace NavidadCompanero
             {
                 string startupDir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
                 return Path.Combine(startupDir, "CompaneroNavidad.cmd");
+            }
+        }
+
+        private static string LocalStartupCacheDir
+        {
+            get
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                return Path.Combine(localAppData, "CompaneroNavidadStartup");
             }
         }
 
@@ -264,17 +274,107 @@ namespace NavidadCompanero
             catch { return false; }
         }
 
+        // Si el ejecutable vive en una unidad de red (como U:), copia una imagen espejo en C:\Users\...\AppData\Local
+        // para que al encender la PC Windows pueda iniciarlo al instante sin que la red bloquee o tarde en reconectar
+        private static string EnsureLocalMirrorIfNeeded()
+        {
+            string currentExe = Application.ExecutablePath;
+            try
+            {
+                string root = Path.GetPathRoot(currentExe);
+                DriveInfo di = new DriveInfo(root);
+                // Si ya está en un disco fijo local (ej. C:) y no es ruta UNC, podemos usar o sincronizar el espejo igual por seguridad
+            }
+            catch { }
+
+            try
+            {
+                string cacheDir = LocalStartupCacheDir;
+                string cacheSub = Path.Combine(cacheDir, "Archivos");
+                string cacheAssets = Path.Combine(cacheSub, "assets");
+                Directory.CreateDirectory(cacheAssets);
+
+                string exeName = Path.GetFileName(currentExe);
+                string targetExe = Path.Combine(cacheDir, exeName);
+
+                // Si no estamos corriendo ya desde la caché, copiamos el exe, config.ini e icono actualizados a la caché local C:
+                if (!string.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Copy(currentExe, targetExe, true);
+
+                    string srcConfig = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Archivos", "config.ini");
+                    string dstConfig = Path.Combine(cacheSub, "config.ini");
+                    if (File.Exists(srcConfig)) File.Copy(srcConfig, dstConfig, true);
+
+                    string srcIco = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Archivos", "assets", "icon.ico");
+                    string dstIco = Path.Combine(cacheAssets, "icon.ico");
+                    if (File.Exists(srcIco)) File.Copy(srcIco, dstIco, true);
+                }
+                else
+                {
+                    // Si arrancó desde la caché en C: y la carpeta original en U: está disponible, sincronizamos config.ini
+                    string uConfig = @"U:\AT\CompaneroNavidad\Archivos\config.ini";
+                    string localConfig = Path.Combine(cacheSub, "config.ini");
+                    if (File.Exists(uConfig))
+                    {
+                        try
+                        {
+                            if (!File.Exists(localConfig) || File.GetLastWriteTimeUtc(uConfig) > File.GetLastWriteTimeUtc(localConfig))
+                                File.Copy(uConfig, localConfig, true);
+                            else if (File.Exists(localConfig) && File.GetLastWriteTimeUtc(localConfig) > File.GetLastWriteTimeUtc(uConfig))
+                                File.Copy(localConfig, uConfig, true);
+                        }
+                        catch { }
+                    }
+                }
+
+                if (File.Exists(targetExe)) return targetExe;
+            }
+            catch { }
+
+            return currentExe;
+        }
+
+        public static void SyncConfigToNetworkIfAvailable(string localConfigPath)
+        {
+            try
+            {
+                string uConfig = @"U:\AT\CompaneroNavidad\Archivos\config.ini";
+                if (!string.Equals(Path.GetFullPath(localConfigPath), Path.GetFullPath(uConfig), StringComparison.OrdinalIgnoreCase))
+                {
+                    string uDir = Path.GetDirectoryName(uConfig);
+                    if (Directory.Exists(uDir) && File.Exists(localConfigPath))
+                    {
+                        File.Copy(localConfigPath, uConfig, true);
+                    }
+                }
+                else
+                {
+                    // Se guardó en U:, actualizamos también la caché en C:
+                    string cacheConfig = Path.Combine(LocalStartupCacheDir, "Archivos", "config.ini");
+                    string cacheDir = Path.GetDirectoryName(cacheConfig);
+                    if (Directory.Exists(cacheDir) && File.Exists(localConfigPath))
+                    {
+                        File.Copy(localConfigPath, cacheConfig, true);
+                    }
+                }
+            }
+            catch { }
+        }
+
         public static void SetStartup(bool enable)
         {
             try
             {
+                string launchExe = enable ? EnsureLocalMirrorIfNeeded() : Application.ExecutablePath;
+
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(RunKey, true))
                 {
                     if (key != null)
                     {
                         if (enable)
                         {
-                            string exePath = "\"" + Application.ExecutablePath + "\"";
+                            string exePath = "\"" + launchExe + "\"";
                             key.SetValue(AppName, exePath);
                         }
                         else
@@ -303,16 +403,27 @@ namespace NavidadCompanero
                     }
                 }
 
-                // Respaldo directo en shell:startup para arranque inmediato al iniciar sesión
+                // Lanzador en shell:startup apuntando a la copia en disco local C: (con fallback a la ruta original)
                 if (enable)
                 {
-                    string cmdContent = "@echo off\r\nstart \"\" \"" + Application.ExecutablePath + "\"\r\n";
+                    string cmdContent = "@echo off\r\n" +
+                        "if exist \"" + launchExe + "\" (\r\n" +
+                        "    start \"\" \"" + launchExe + "\"\r\n" +
+                        ") else (\r\n" +
+                        "    start \"\" \"" + Application.ExecutablePath + "\"\r\n" +
+                        ")\r\n";
                     File.WriteAllText(StartupShortcutPath, cmdContent);
                 }
                 else
                 {
                     if (File.Exists(StartupShortcutPath))
                         File.Delete(StartupShortcutPath);
+                    try
+                    {
+                        if (Directory.Exists(LocalStartupCacheDir))
+                            Directory.Delete(LocalStartupCacheDir, true);
+                    }
+                    catch { }
                 }
             }
             catch (Exception ex)
