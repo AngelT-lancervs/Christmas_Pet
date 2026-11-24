@@ -57,51 +57,132 @@ namespace NavidadCompanero
             }
         }
 
-        public static AppConfig Load()
+        // Marca de tiempo guardada DENTRO del archivo (no depende del reloj del servidor de red)
+        public long SavedAtTicks = 0;
+
+        public const string NetworkConfigPath = @"U:\AT\CompaneroNavidad\Archivos\config.ini";
+
+        public static string CacheConfigPath
+        {
+            get
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                return Path.Combine(localAppData, "CompaneroNavidadStartup", "Archivos", "config.ini");
+            }
+        }
+
+        // Todas las copias conocidas del config.ini (la propia, la de U: y la caché local en C:)
+        private static List<string> GetAllConfigPaths()
+        {
+            List<string> result = new List<string>();
+            foreach (string p in new string[] { ConfigPath, NetworkConfigPath, CacheConfigPath })
+            {
+                try
+                {
+                    string full = Path.GetFullPath(p);
+                    bool dup = false;
+                    foreach (string r in result)
+                        if (string.Equals(r, full, StringComparison.OrdinalIgnoreCase)) { dup = true; break; }
+                    if (!dup) result.Add(full);
+                }
+                catch { }
+            }
+            return result;
+        }
+
+        private static AppConfig ParseFile(string path)
         {
             AppConfig cfg = new AppConfig();
-            try
+            foreach (string line in File.ReadAllLines(path))
             {
-                if (File.Exists(ConfigPath))
+                int eq = line.IndexOf('=');
+                if (eq > 0)
                 {
-                    foreach (string line in File.ReadAllLines(ConfigPath))
+                    string k = line.Substring(0, eq).Trim();
+                    string v = line.Substring(eq + 1).Trim();
+                    if (k == "SelectedPet") cfg.SelectedPet = v;
+                    else if (k == "SavedAt") long.TryParse(v, out cfg.SavedAtTicks);
+                    else if (k == "ShowIntroOnStart") bool.TryParse(v, out cfg.ShowIntroOnStart);
+                    else if (k == "GhostMode") bool.TryParse(v, out cfg.GhostMode);
+                    else if (k == "StayInPlace") bool.TryParse(v, out cfg.StayInPlace);
+                    else if (k == "DisableAutoMessages") bool.TryParse(v, out cfg.DisableAutoMessages);
+                    else if (k == "ScalePercent")
                     {
-                        int eq = line.IndexOf('=');
-                        if (eq > 0)
-                        {
-                            string k = line.Substring(0, eq).Trim();
-                            string v = line.Substring(eq + 1).Trim();
-                            if (k == "SelectedPet") cfg.SelectedPet = v;
-                            else if (k == "ShowIntroOnStart") bool.TryParse(v, out cfg.ShowIntroOnStart);
-                            else if (k == "GhostMode") bool.TryParse(v, out cfg.GhostMode);
-                            else if (k == "StayInPlace") bool.TryParse(v, out cfg.StayInPlace);
-                            else if (k == "DisableAutoMessages") bool.TryParse(v, out cfg.DisableAutoMessages);
-                            else if (k == "ScalePercent")
-                            {
-                                int sp;
-                                if (int.TryParse(v, out sp))
-                                    cfg.ScalePercent = Math.Max(50, Math.Min(180, sp));
-                            }
-                            else if (k.StartsWith("Name_"))
-                            {
-                                string petKey = k.Substring(5);
-                                if (!string.IsNullOrWhiteSpace(v))
-                                    cfg.PetNames[petKey] = v;
-                            }
-                        }
+                        int sp;
+                        if (int.TryParse(v, out sp))
+                            cfg.ScalePercent = Math.Max(50, Math.Min(180, sp));
+                    }
+                    else if (k.StartsWith("Name_"))
+                    {
+                        string petKey = k.Substring(5);
+                        if (!string.IsNullOrWhiteSpace(v))
+                            cfg.PetNames[petKey] = v;
                     }
                 }
             }
-            catch { }
             return cfg;
+        }
+
+        public static AppConfig Load()
+        {
+            AppConfig best = null;
+            string bestPath = null;
+            DateTime bestWrite = DateTime.MinValue;
+
+            // Lee todas las copias disponibles y se queda con la guardada más recientemente
+            foreach (string path in GetAllConfigPaths())
+            {
+                try
+                {
+                    if (!File.Exists(path)) continue;
+                    AppConfig cfg = ParseFile(path);
+                    DateTime write = File.GetLastWriteTimeUtc(path);
+                    bool better = best == null
+                        || cfg.SavedAtTicks > best.SavedAtTicks
+                        || (cfg.SavedAtTicks == best.SavedAtTicks && write > bestWrite);
+                    if (better)
+                    {
+                        best = cfg;
+                        bestPath = path;
+                        bestWrite = write;
+                    }
+                }
+                catch { }
+            }
+
+            if (best == null) return new AppConfig();
+
+            // Propaga la copia ganadora a las demás que estén desactualizadas
+            foreach (string path in GetAllConfigPaths())
+            {
+                if (string.Equals(path, bestPath, StringComparison.OrdinalIgnoreCase)) continue;
+                try
+                {
+                    string dir = Path.GetDirectoryName(path);
+                    if (!Directory.Exists(dir)) continue;
+                    bool outdated = true;
+                    if (File.Exists(path))
+                    {
+                        AppConfig other = ParseFile(path);
+                        outdated = other.SavedAtTicks < best.SavedAtTicks || other.SelectedPet != best.SelectedPet
+                            || other.ScalePercent != best.ScalePercent;
+                    }
+                    if (outdated) File.Copy(bestPath, path, true);
+                }
+                catch { }
+            }
+
+            return best;
         }
 
         public void Save()
         {
             try
             {
+                SavedAtTicks = DateTime.UtcNow.Ticks;
                 List<string> lines = new List<string>();
                 lines.Add("SelectedPet=" + SelectedPet);
+                lines.Add("SavedAt=" + SavedAtTicks);
                 lines.Add("ShowIntroOnStart=" + ShowIntroOnStart);
                 lines.Add("GhostMode=" + GhostMode);
                 lines.Add("StayInPlace=" + StayInPlace);
@@ -111,8 +192,18 @@ namespace NavidadCompanero
                 {
                     lines.Add("Name_" + kv.Key + "=" + kv.Value);
                 }
-                File.WriteAllLines(ConfigPath, lines.ToArray());
-                StartupManager.SyncConfigToNetworkIfAvailable(ConfigPath);
+                string[] arr = lines.ToArray();
+
+                // Escribe la copia propia y todas las demás copias cuyas carpetas existan (U: y caché en C:)
+                foreach (string path in GetAllConfigPaths())
+                {
+                    try
+                    {
+                        string dir = Path.GetDirectoryName(path);
+                        if (Directory.Exists(dir)) File.WriteAllLines(path, arr);
+                    }
+                    catch { }
+                }
             }
             catch { }
         }
@@ -297,35 +388,22 @@ namespace NavidadCompanero
                 string exeName = Path.GetFileName(currentExe);
                 string targetExe = Path.Combine(cacheDir, exeName);
 
-                // Si no estamos corriendo ya desde la caché, copiamos el exe, config.ini e icono actualizados a la caché local C:
+                // Si no estamos corriendo ya desde la caché, copiamos el exe e icono actualizados a la caché local C:
+                // (el config.ini lo sincroniza AppConfig eligiendo siempre la copia más reciente; aquí solo se crea si falta)
+                string dstConfig = Path.Combine(cacheSub, "config.ini");
                 if (!string.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
                 {
                     File.Copy(currentExe, targetExe, true);
-
-                    string srcConfig = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Archivos", "config.ini");
-                    string dstConfig = Path.Combine(cacheSub, "config.ini");
-                    if (File.Exists(srcConfig)) File.Copy(srcConfig, dstConfig, true);
 
                     string srcIco = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Archivos", "assets", "icon.ico");
                     string dstIco = Path.Combine(cacheAssets, "icon.ico");
                     if (File.Exists(srcIco)) File.Copy(srcIco, dstIco, true);
                 }
-                else
+
+                if (!File.Exists(dstConfig))
                 {
-                    // Si arrancó desde la caché en C: y la carpeta original en U: está disponible, sincronizamos config.ini
-                    string uConfig = @"U:\AT\CompaneroNavidad\Archivos\config.ini";
-                    string localConfig = Path.Combine(cacheSub, "config.ini");
-                    if (File.Exists(uConfig))
-                    {
-                        try
-                        {
-                            if (!File.Exists(localConfig) || File.GetLastWriteTimeUtc(uConfig) > File.GetLastWriteTimeUtc(localConfig))
-                                File.Copy(uConfig, localConfig, true);
-                            else if (File.Exists(localConfig) && File.GetLastWriteTimeUtc(localConfig) > File.GetLastWriteTimeUtc(uConfig))
-                                File.Copy(localConfig, uConfig, true);
-                        }
-                        catch { }
-                    }
+                    AppConfig current = AppConfig.Load();
+                    current.Save();
                 }
 
                 if (File.Exists(targetExe)) return targetExe;
