@@ -27,6 +27,12 @@ Cuando termina el saludo inicial (o desde el primer segundo), queda activa tu ma
 Cada personaje tiene sus propios comportamientos:
 - Camina por la barra de tareas, se detiene a descansar, se sienta, parpadea, salta y se queda dormido (cada uno tiene su propia postura para dormir).
 - Si le das un **clic izquierdo**, hace un truco propio (el duende lanza un regalo, al reno se le iluminan los cuernos y saca una zanahoria, el pingüino se desliza de panza en el hielo, el gato saluda levantando la patita y el perro bate la cola con un hueso navideño) y dice una de sus frases.
+- **Animaciones especiales de juego:** de vez en cuando (o desde el menú de clic derecho / bandeja con `¡A jugar!`) cada mascota hace algo único:
+  - **Perrito:** rueda dos vueltas por el suelo y luego festeja moviendo la cola.
+  - **Gatito:** juega con una esfera navideña que rueda, la golpea con la patita y al final da un brinquito de cazador.
+  - **Duende:** hace malabares con tres esferas de colores sobre su gorro.
+  - **Reno:** despega y vuela galopando en el aire dejando una estela de estrellas, como en el trineo de Santa.
+  - **Pingüino:** hace piruetas girando sobre una pequeña pista de hielo.
 - Si mantienes presionado el **clic izquierdo y mueves el ratón**, puedes arrastrarlo por cualquier parte de la pantalla. Al soltarlo, cae con gravedad hasta volver a pisar la barra de tareas.
 - **Traspaso de pantalla y soporte para varios monitores:** cuando camina hasta el borde izquierdo de la pantalla, empieza a asomarse poco a poco por el borde derecho al mismo tiempo. Si tienes dos o más monitores conectados, camina libremente pasando de un monitor a otro y también puedes arrastrarlo al monitor que quieras.
 

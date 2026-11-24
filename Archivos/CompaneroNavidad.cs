@@ -1018,7 +1018,8 @@ namespace NavidadCompanero
         Jumping,
         Dragging,
         Falling,
-        Celebrating
+        Celebrating,
+        Playing
     }
 
     public enum ParticleKind
@@ -1075,6 +1076,9 @@ namespace NavidadCompanero
         private PetState state = PetState.Falling;
         private float stateTimer = 0f;
         private float animTick = 0f;
+        // Animación especial de juego (rodar, bolita de Navidad, malabares, vuelo, piruetas)
+        private float playStartTick = 0f;
+        private float playDuration = 0f;
         private System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         private long lastMs = 0;
 
@@ -1232,6 +1236,137 @@ namespace NavidadCompanero
             SayGreeting(GetRandomGreetingFor(config.SelectedPet));
         }
 
+        // Inicia la animación especial de juego propia de cada mascota
+        public void StartPlaying(bool announce)
+        {
+            if (isDragging || state == PetState.Falling || state == PetState.Jumping) return;
+            state = PetState.Playing;
+            playStartTick = animTick;
+            switch (config.SelectedPet)
+            {
+                case "Perro": playDuration = 150f; break;    // Rueda por el suelo
+                case "Gato": playDuration = 210f; break;     // Juega con una esfera navideña
+                case "Duende": playDuration = 190f; break;   // Malabares con esferas
+                case "Reno": playDuration = 170f; break;     // Vuela como en el trineo
+                case "Pinguino": playDuration = 150f; break; // Piruetas sobre el hielo
+                default: playDuration = 160f; break;
+            }
+            stateTimer = playDuration;
+            if (announce) SayGreeting(GetPlayLineFor(config.SelectedPet));
+        }
+
+        private string GetPlayLineFor(string pet)
+        {
+            string[] lines;
+            switch (pet)
+            {
+                case "Perro": lines = new string[] { "¡A rodar!", "¡Mira mi truco!", "¡Rueda, rueda!" }; break;
+                case "Gato": lines = new string[] { "¡Mi bolita!", "¡Esa esfera es mía!", "¡Miau, a jugar!" }; break;
+                case "Duende": lines = new string[] { "¡Mira mis malabares!", "¡Ni una se me cae!", "¡Hop, hop, hop!" }; break;
+                case "Reno": lines = new string[] { "¡A volar!", "¡Práctica de vuelo!", "¡Rumbo al cielo!" }; break;
+                case "Pinguino": lines = new string[] { "¡Piruetas sobre hielo!", "¡Mira cómo patino!", "¡Wiii!" }; break;
+                default: return "¡A jugar!";
+            }
+            return lines[rnd.Next(lines.Length)];
+        }
+
+        private void UpdatePlaying(float prevTick, float resFactor, float dt)
+        {
+            float t = animTick - playStartTick;
+            float pt = prevTick - playStartTick;
+            switch (config.SelectedPet)
+            {
+                case "Perro":
+                    if (t < 100f && !config.StayInPlace)
+                        posX += (facingRight ? 1f : -1f) * 2.1f * resFactor * dt;
+                    if (pt < 100f && t >= 100f)
+                        SpawnParticles(ParticleKind.Heart, Color.FromArgb(255, 95, 140), 5);
+                    break;
+                case "Gato":
+                    if ((int)(t / 42f) > (int)(pt / 42f))
+                        SpawnParticles(ParticleKind.Star, Color.Gold, 1);
+                    break;
+                case "Duende":
+                    if ((int)(t / 30f) > (int)(pt / 30f))
+                        SpawnParticles(ParticleKind.Star, Color.Gold, 1);
+                    break;
+                case "Reno":
+                    if ((int)(t / 7f) > (int)(pt / 7f) && t > 20f && t < playDuration - 25f)
+                        SpawnParticles(ParticleKind.Star, Color.FromArgb(255, 230, 120), 1);
+                    break;
+                case "Pinguino":
+                    if ((int)(t / 12f) > (int)(pt / 12f))
+                        SpawnParticles(ParticleKind.Snowflake, Color.LightCyan, 1);
+                    break;
+            }
+        }
+
+        // Esfera navideña vectorial (gira al rodar)
+        private void DrawOrnamentBall(Graphics g, float x, float y, float r, Color col, float rotDeg)
+        {
+            GraphicsState st = g.Save();
+            g.TranslateTransform(x, y);
+            g.RotateTransform(rotDeg);
+
+            RectangleF body = new RectangleF(-r, -r, r * 2, r * 2);
+            using (LinearGradientBrush grad = new LinearGradientBrush(body,
+                ControlPaint.Light(col, 0.4f), ControlPaint.Dark(col, 0.25f), LinearGradientMode.ForwardDiagonal))
+            using (Pen outline = new Pen(ControlPaint.Dark(col, 0.5f), 1.2f))
+            using (Pen band = new Pen(Color.FromArgb(240, 255, 215, 70), r * 0.28f))
+            using (SolidBrush capBrush = new SolidBrush(Color.FromArgb(255, 210, 170, 50)))
+            using (Pen loop = new Pen(Color.FromArgb(255, 190, 150, 40), 1.2f))
+            using (SolidBrush shine = new SolidBrush(Color.FromArgb(200, 255, 255, 255)))
+            {
+                g.FillEllipse(grad, body);
+                g.DrawArc(band, -r * 0.95f, -r * 0.3f, r * 1.9f, r * 0.6f, 0, 180);
+                g.DrawEllipse(outline, body);
+                g.FillRectangle(capBrush, -r * 0.35f, -r - r * 0.35f, r * 0.7f, r * 0.45f);
+                g.DrawEllipse(loop, -r * 0.2f, -r - r * 0.75f, r * 0.4f, r * 0.45f);
+                g.FillEllipse(shine, -r * 0.55f, -r * 0.6f, r * 0.45f, r * 0.35f);
+            }
+            g.Restore(st);
+        }
+
+        // Accesorios de juego dibujados en coordenadas de la mascota
+        private void DrawPlayProps(Graphics g)
+        {
+            float pt = animTick - playStartTick;
+            if (config.SelectedPet == "Gato")
+            {
+                // La esfera rueda hacia adelante y regresa; el gatito la golpea con la patita
+                float ballX = 36f + (float)Math.Abs(Math.Sin(pt * 0.075f)) * 26f;
+                float rot = (ballX / 8f) * 57.3f;
+                DrawOrnamentBall(g, ballX, -8f, 8f, Color.FromArgb(225, 35, 45), rot);
+
+                float near = Math.Max(0f, 1f - (ballX - 36f) / 8f);
+                if (near > 0f)
+                {
+                    float pawX = ballX - 19f + near * 3f;
+                    float pawY = -14f - near * 9f;
+                    using (SolidBrush pawWhite = new SolidBrush(Color.FromArgb(252, 250, 246)))
+                    using (Pen pawBorder = new Pen(Color.FromArgb(148, 138, 128), 1.6f))
+                    using (SolidBrush padPink = new SolidBrush(Color.FromArgb(235, 165, 172)))
+                    {
+                        g.FillEllipse(pawWhite, pawX, pawY, 12, 10);
+                        g.DrawEllipse(pawBorder, pawX, pawY, 12, 10);
+                        g.FillEllipse(padPink, pawX + 4f, pawY + 4f, 4.5f, 3.5f);
+                    }
+                }
+            }
+            else if (config.SelectedPet == "Duende")
+            {
+                // Malabares: tres esferas girando en círculo sobre su gorro
+                Color[] cols = { Color.FromArgb(225, 35, 45), Color.FromArgb(235, 185, 40), Color.FromArgb(35, 160, 70) };
+                for (int i = 0; i < 3; i++)
+                {
+                    double a = pt * 0.12 + i * (Math.PI * 2 / 3);
+                    float bx = (float)Math.Cos(a) * 24f;
+                    float by = -134f - (float)Math.Sin(a) * 20f;
+                    DrawOrnamentBall(g, bx, by, 6.5f, cols[i], (float)(a * 57.3));
+                }
+            }
+        }
+
         private void BuildContextMenu()
         {
             ContextMenuStrip menu = new ContextMenuStrip();
@@ -1258,6 +1393,10 @@ namespace NavidadCompanero
             ToolStripMenuItem celebrateItem = new ToolStripMenuItem("Hacer truco / Saludar");
             celebrateItem.Click += (s, e) => TriggerCelebration();
             menu.Items.Add(celebrateItem);
+
+            ToolStripMenuItem playItem = new ToolStripMenuItem("¡A jugar! (animación especial)");
+            playItem.Click += (s, e) => StartPlaying(true);
+            menu.Items.Add(playItem);
 
             ToolStripMenuItem panelItem = new ToolStripMenuItem("Configuración...");
             panelItem.Click += (s, e) => { if (OnOpenControlPanelRequested != null) OnOpenControlPanelRequested(); };
@@ -1540,6 +1679,11 @@ namespace NavidadCompanero
                         }
                     }
 
+                    if (state == PetState.Playing)
+                    {
+                        UpdatePlaying(prevTick, resFactor, dt);
+                    }
+
                     if (stateTimer <= 0)
                     {
                         ChooseNextBehavior();
@@ -1593,27 +1737,31 @@ namespace NavidadCompanero
         private void ChooseNextBehavior()
         {
             double roll = rnd.NextDouble();
-            if (!config.StayInPlace && roll < 0.44)
+            if (!config.StayInPlace && roll < 0.40)
             {
                 state = PetState.Walking;
                 stateTimer = rnd.Next(90, 240);
                 if (rnd.NextDouble() < 0.5) facingRight = !facingRight;
             }
-            else if (roll < 0.62)
+            else if (roll < 0.55)
             {
                 state = PetState.Idle;
                 stateTimer = rnd.Next(60, 140);
                 if (!config.DisableAutoMessages && rnd.NextDouble() < 0.22)
                     SayGreeting(GetRandomGreetingFor(config.SelectedPet));
             }
-            else if (roll < 0.80)
+            else if (roll < 0.70)
             {
                 state = PetState.Sitting;
                 stateTimer = rnd.Next(110, 220);
                 if (!config.DisableAutoMessages && rnd.NextDouble() < 0.30)
                     SayGreeting(GetRandomGreetingFor(config.SelectedPet));
             }
-            else if (roll < 0.92)
+            else if (roll < 0.84)
+            {
+                StartPlaying(!config.DisableAutoMessages && rnd.NextDouble() < 0.5);
+            }
+            else if (roll < 0.93)
             {
                 state = PetState.Sleeping;
                 stateTimer = rnd.Next(150, 280);
@@ -1644,6 +1792,7 @@ namespace NavidadCompanero
                 float tiltAngle = 0f;
                 float stretchX = 1.0f;
                 float stretchY = 1.0f;
+                float rollAngle = 0f;
 
                 if (state == PetState.Walking)
                 {
@@ -1701,6 +1850,60 @@ namespace NavidadCompanero
                 {
                     tiltAngle = (float)Math.Sin(animTick * 0.45f) * 12f;
                 }
+                else if (state == PetState.Playing)
+                {
+                    float pt = animTick - playStartTick;
+                    float prog = playDuration > 0f ? Math.Max(0f, Math.Min(1f, pt / playDuration)) : 0f;
+                    switch (config.SelectedPet)
+                    {
+                        case "Perro":
+                            // Rueda dos vueltas completas sobre su lomo y luego festeja moviendo la cola
+                            if (pt < 100f)
+                            {
+                                float k = pt / 100f;
+                                float ease = k * k * (3f - 2f * k);
+                                rollAngle = ease * 720f;
+                                double rad = rollAngle * Math.PI / 180.0;
+                                bounceY = -(float)((1.0 - Math.Cos(rad)) / 2.0) * 30f;
+                                walkCycle = (float)Math.Sin(animTick * 0.9f);
+                            }
+                            else
+                            {
+                                bounceY = -(float)Math.Abs(Math.Sin(animTick * 0.5f)) * 6f;
+                                tiltAngle = (float)Math.Sin(animTick * 0.5f) * 5f;
+                            }
+                            break;
+                        case "Gato":
+                            // Se inclina siguiendo la bolita y al final da un brinquito de cazador
+                            tiltAngle = (float)Math.Sin(pt * 0.075f) * 4f;
+                            if (prog > 0.85f)
+                                bounceY = -(float)Math.Sin((prog - 0.85f) / 0.15f * Math.PI) * 14f;
+                            else
+                                bounceY = (float)Math.Sin(animTick * 0.11f) * 1.5f;
+                            break;
+                        case "Duende":
+                            // Pequeños rebotes mientras hace malabares
+                            bounceY = -(float)Math.Abs(Math.Sin(pt * 0.24f)) * 3f;
+                            tiltAngle = (float)Math.Sin(pt * 0.12f) * 4f;
+                            break;
+                        case "Reno":
+                            // Despega, vuela galopando en el aire y aterriza suavemente
+                            float env = prog < 0.2f ? prog / 0.2f : (prog > 0.8f ? (1f - prog) / 0.2f : 1f);
+                            env = env * env * (3f - 2f * env);
+                            bounceY = -(env * 36f + (float)Math.Sin(pt * 0.15f) * 4f * env);
+                            walkCycle = (float)Math.Sin(pt * 0.55f) * env;
+                            tiltAngle = -6f * env + (float)Math.Sin(pt * 0.15f) * 3f * env;
+                            break;
+                        case "Pinguino":
+                            // Piruetas girando sobre sí mismo (4 vueltas que terminan mirando al frente)
+                            float spinEase = prog * prog * (3f - 2f * prog);
+                            double spin = spinEase * Math.PI * 2 * 4;
+                            float c = (float)Math.Cos(spin);
+                            stretchX = (c < 0 ? -1f : 1f) * Math.Max(0.14f, Math.Abs(c));
+                            bounceY = -(float)Math.Abs(Math.Sin(spin)) * 4f;
+                            break;
+                    }
+                }
 
                 float curScale = CurrentPetScale;
                 float scaleRatio = curScale / BasePetScale;
@@ -1714,11 +1917,33 @@ namespace NavidadCompanero
                     g.FillEllipse(shadow, cx - sw / 2f, groundBase - sh / 2f, sw, sh);
                 }
 
+                // Pista de hielo bajo el pingüino mientras hace piruetas
+                if (state == PetState.Playing && config.SelectedPet == "Pinguino")
+                {
+                    float iw = 96f * scaleRatio;
+                    float ih = 16f * scaleRatio;
+                    using (SolidBrush ice = new SolidBrush(Color.FromArgb(110, 190, 230, 255)))
+                    using (Pen iceEdge = new Pen(Color.FromArgb(170, 235, 250, 255), 1.4f))
+                    {
+                        g.FillEllipse(ice, cx - iw / 2f, groundBase - ih / 2f, iw, ih);
+                        g.DrawEllipse(iceEdge, cx - iw / 2f, groundBase - ih / 2f, iw, ih);
+                    }
+                }
+
                 GraphicsState gState = g.Save();
                 g.TranslateTransform(cx, groundBase + bounceY);
                 if (!facingRight) g.ScaleTransform(-1, 1);
                 g.ScaleTransform(curScale * stretchX, curScale * stretchY);
                 g.RotateTransform(tiltAngle);
+
+                // Rotación completa alrededor del centro del cuerpo (perrito rodando)
+                GraphicsState rollState = g.Save();
+                if (rollAngle != 0f)
+                {
+                    g.TranslateTransform(0, -40f);
+                    g.RotateTransform(rollAngle);
+                    g.TranslateTransform(0, 40f);
+                }
 
                 switch (config.SelectedPet)
                 {
@@ -1741,6 +1966,11 @@ namespace NavidadCompanero
                         DrawReindeer(g, walkCycle);
                         break;
                 }
+
+                g.Restore(rollState);
+
+                if (state == PetState.Playing)
+                    DrawPlayProps(g);
 
                 g.Restore(gState);
 
@@ -3137,6 +3367,10 @@ namespace NavidadCompanero
                 intro.Show();
             };
             menu.Items.Add(introItem);
+
+            ToolStripMenuItem trayPlayItem = new ToolStripMenuItem("¡A jugar! (animación especial)");
+            trayPlayItem.Click += (s, e) => petForm.StartPlaying(true);
+            menu.Items.Add(trayPlayItem);
 
             menu.Items.Add(new ToolStripSeparator());
 
