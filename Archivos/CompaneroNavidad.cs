@@ -374,7 +374,7 @@ namespace NavidadCompanero
                     {
                         if (enable)
                         {
-                            string exePath = "\"" + launchExe + "\"";
+                            string exePath = "\"" + launchExe + "\" --autostart";
                             key.SetValue(AppName, exePath);
                         }
                         else
@@ -408,9 +408,9 @@ namespace NavidadCompanero
                 {
                     string cmdContent = "@echo off\r\n" +
                         "if exist \"" + launchExe + "\" (\r\n" +
-                        "    start \"\" \"" + launchExe + "\"\r\n" +
+                        "    start \"\" \"" + launchExe + "\" --autostart\r\n" +
                         ") else (\r\n" +
-                        "    start \"\" \"" + Application.ExecutablePath + "\"\r\n" +
+                        "    start \"\" \"" + Application.ExecutablePath + "\" --autostart\r\n" +
                         ")\r\n";
                     File.WriteAllText(StartupShortcutPath, cmdContent);
                 }
@@ -2534,7 +2534,7 @@ namespace NavidadCompanero
             }
         }
 
-        // 5. PERRITO NAVIDEÑO (Duerme echadito sobre sus patitas delanteras; Truco: bate la cola rapidísimo con un huesito navideño)
+        // 5. PERRITO BEAGLE NAVIDEÑO (Tricolor: orejitas largas caídas marrón oscuro/negro, cabecita caramelo con franja blanca central, pechito/patitas blancas y colita con punta blanca)
         private void DrawDog(Graphics g, float walk)
         {
             bool sleeping = (state == PetState.Sleeping);
@@ -2543,87 +2543,115 @@ namespace NavidadCompanero
             float legR = -walk * 5f;
             float sleepDrop = sleeping ? 13f : 0f;
 
-            // Colita moviéndose feliz (a toda velocidad durante su truco)
+            // Colita de Beagle (base marrón/negra y la clásica punta blanca "white tip" moviéndose feliz)
             float wagSpeed = trick ? 0.85f : 0.42f;
             float tailWag = sleeping ? 6f : (float)Math.Sin(animTick * wagSpeed) * (trick ? 15f : 10f);
-            using (Pen tailBorder = new Pen(Color.FromArgb(140, 92, 48), 9f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-            using (Pen tailPen = new Pen(Color.FromArgb(222, 165, 102), 6.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            float tx1 = -16f, ty1 = -24f + sleepDrop * 0.5f;
+            float tx2 = -33f, ty2 = -40f + sleepDrop + tailWag;
+            float tMidX = (tx1 + tx2) * 0.5f, tMidY = (ty1 + ty2) * 0.5f;
+
+            using (Pen tailBorder = new Pen(Color.FromArgb(65, 42, 26), 9.5f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen tailTan = new Pen(Color.FromArgb(182, 112, 52), 7f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+            using (Pen tailWhiteTip = new Pen(Color.FromArgb(252, 250, 246), 7f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
-                g.DrawLine(tailBorder, -16, -24 + sleepDrop * 0.5f, -31, -38 + sleepDrop + tailWag);
-                g.DrawLine(tailPen, -16, -24 + sleepDrop * 0.5f, -31, -38 + sleepDrop + tailWag);
+                g.DrawLine(tailBorder, tx1, ty1, tx2, ty2);
+                g.DrawLine(tailTan, tx1, ty1, tMidX, tMidY);
+                g.DrawLine(tailWhiteTip, tMidX, tMidY, tx2, ty2);
             }
 
             RectangleF bodyRect = new RectangleF(-22, -48 + sleepDrop, 44, 42 - sleepDrop * 0.3f);
-            using (LinearGradientBrush furGrad = new LinearGradientBrush(bodyRect,
-                Color.FromArgb(235, 180, 118), Color.FromArgb(198, 138, 78), LinearGradientMode.Vertical))
-            using (SolidBrush darkEar = new SolidBrush(Color.FromArgb(132, 82, 42)))
-            using (SolidBrush cream = new SolidBrush(Color.FromArgb(252, 242, 226)))
-            using (Pen border = new Pen(Color.FromArgb(138, 90, 46), 2f))
+            using (LinearGradientBrush tanGrad = new LinearGradientBrush(new RectangleF(-26, -90, 52, 90),
+                Color.FromArgb(204, 128, 62), Color.FromArgb(172, 102, 44), LinearGradientMode.Vertical))
+            using (SolidBrush saddleBlack = new SolidBrush(Color.FromArgb(46, 38, 34)))
+            using (SolidBrush darkEar = new SolidBrush(Color.FromArgb(72, 46, 28)))
+            using (SolidBrush pureWhite = new SolidBrush(Color.FromArgb(253, 251, 247)))
+            using (Pen border = new Pen(Color.FromArgb(92, 58, 32), 2f))
+            using (Pen darkBorder = new Pen(Color.FromArgb(42, 28, 18), 2f))
             {
-                // Patitas (extendidas al frente si duerme echadito)
+                // Patitas blancas típicas del Beagle (extendidas al frente si duerme echadito)
                 if (sleeping)
                 {
-                    g.FillEllipse(cream, -20, -10, 17, 9);
+                    g.FillEllipse(pureWhite, -20, -10, 17, 9);
                     g.DrawEllipse(border, -20, -10, 17, 9);
-                    g.FillEllipse(cream, 3, -10, 17, 9);
+                    g.FillEllipse(pureWhite, 3, -10, 17, 9);
                     g.DrawEllipse(border, 3, -10, 17, 9);
                 }
                 else
                 {
-                    g.FillEllipse(cream, -16 + legL, -10, 14, 10);
+                    g.FillEllipse(pureWhite, -16 + legL, -10, 14, 10);
                     g.DrawEllipse(border, -16 + legL, -10, 14, 10);
-                    g.FillEllipse(cream, 4 + legR, -10, 14, 10);
+                    g.FillEllipse(pureWhite, 4 + legR, -10, 14, 10);
                     g.DrawEllipse(border, 4 + legR, -10, 14, 10);
                 }
 
-                // Cuerpo
-                g.FillEllipse(furGrad, bodyRect);
+                // Cuerpo tricolor del Beagle: base caramelo, lomo ("saddle") negro/oscuro a los costados y pecho blanco amplio
+                g.FillEllipse(tanGrad, bodyRect);
+                g.FillPie(saddleBlack, -22, -46 + sleepDrop, 44, 38 - sleepDrop * 0.3f, 155, 230);
                 g.DrawEllipse(border, bodyRect);
-                g.FillEllipse(cream, -13, -42 + sleepDrop, 26, 28 - sleepDrop * 0.25f);
+                g.FillEllipse(pureWhite, -14, -43 + sleepDrop, 28, 30 - sleepDrop * 0.25f);
 
-                // Cabeza
+                // Orejas largas, anchas y redondeadas de Beagle (caen a los lados de la cara)
+                float earLift = trick ? -6f : 0f;
+                GraphicsState earLState = g.Save();
+                g.TranslateTransform(-23, -78 + sleepDrop + earLift * 0.5f);
+                g.RotateTransform(trick ? 14f : 8f);
+                g.FillEllipse(darkEar, -8, 0, 15, 31);
+                g.DrawEllipse(darkBorder, -8, 0, 15, 31);
+                g.Restore(earLState);
+
+                GraphicsState earRState = g.Save();
+                g.TranslateTransform(23, -78 + sleepDrop + earLift * 0.5f);
+                g.RotateTransform(trick ? -14f : -8f);
+                g.FillEllipse(darkEar, -7, 0, 15, 31);
+                g.DrawEllipse(darkBorder, -7, 0, 15, 31);
+                g.Restore(earRState);
+
+                // Cabeza color caramelo/miel del Beagle
                 RectangleF headRect = new RectangleF(-24, -88 + sleepDrop, 48, 44);
-                g.FillEllipse(furGrad, headRect);
+                g.FillEllipse(tanGrad, headRect);
+
+                // Franja blanca central ("blaze") que sube desde el hocico por el medio de la frente (sello clásico del Beagle)
+                PointF[] blaze = {
+                    new PointF(2f, -87f + sleepDrop),
+                    new PointF(-4.5f, -66f + sleepDrop),
+                    new PointF(8.5f, -66f + sleepDrop)
+                };
+                g.FillClosedCurve(pureWhite, blaze, FillMode.Winding, 0.35f);
+
+                // Hocico y mejillas bajas blancas
+                g.FillEllipse(pureWhite, -13, -68 + sleepDrop, 29, 20);
                 g.DrawEllipse(border, headRect);
-
-                // Manchita tierna alrededor del ojo izquierdo y cejitas crema
-                g.FillEllipse(darkEar, -17, -77 + sleepDrop, 14, 13);
-                g.FillEllipse(cream, -12, -79 + sleepDrop, 5, 3);
-                g.FillEllipse(cream, 10, -79 + sleepDrop, 5, 3);
-
-                // Orejitas caídas suaves (se levantan un poquito en su truco)
-                float earLift = trick ? -5f : 0f;
-                g.FillEllipse(darkEar, -30, -82 + sleepDrop + earLift, 12, 27);
-                g.DrawEllipse(border, -30, -82 + sleepDrop + earLift, 12, 27);
-                g.FillEllipse(darkEar, 18, -82 + sleepDrop + earLift, 12, 27);
-                g.DrawEllipse(border, 18, -82 + sleepDrop + earLift, 12, 27);
-
-                // Hocico crema
-                g.FillEllipse(cream, -10, -66 + sleepDrop, 24, 16);
             }
 
-            DrawCuteEyesAndBlush(g, 2, -70 + sleepDrop, 11);
+            DrawCuteEyesAndBlush(g, 2, -71 + sleepDrop, 11.5f);
 
-            // Nariz negra brillante y lengüita rosada feliz
-            using (SolidBrush nose = new SolidBrush(Color.FromArgb(38, 32, 32)))
-            using (SolidBrush tongue = new SolidBrush(Color.FromArgb(255, 110, 132)))
+            // Nariz negra cuadrada/redondeada de sabueso Beagle y lengüita rosada feliz
+            using (SolidBrush nose = new SolidBrush(Color.FromArgb(32, 28, 28)))
+            using (SolidBrush tongue = new SolidBrush(Color.FromArgb(255, 112, 134)))
+            using (Pen mouthPen = new Pen(Color.FromArgb(95, 65, 50), 1.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
             {
                 if (!sleeping)
-                    g.FillEllipse(tongue, 1, -56 + sleepDrop, 7, 9);
-                g.FillEllipse(nose, -1.5f, -65.5f + sleepDrop, 9, 6.5f);
-                g.FillEllipse(Brushes.White, 0, -64.5f + sleepDrop, 2.5f, 2f);
+                    g.FillEllipse(tongue, 1.5f, -56 + sleepDrop, 7, 9);
+
+                g.DrawArc(mouthPen, -4.5f, -61 + sleepDrop, 6.5f, 5, 0, 180);
+                g.DrawArc(mouthPen, 2.0f, -61 + sleepDrop, 6.5f, 5, 0, 180);
+
+                g.FillEllipse(nose, -2f, -66.5f + sleepDrop, 9.5f, 7f);
+                g.FillEllipse(Brushes.White, -0.2f, -65.2f + sleepDrop, 3f, 2f);
             }
 
-            // Bufanda navideña roja con medalla dorada
+            // Collar/bufanda navideña roja con cascabel dorado
             using (SolidBrush red = new SolidBrush(Color.FromArgb(222, 38, 42)))
+            using (Pen goldBorder = new Pen(Color.FromArgb(165, 115, 20), 1.2f))
             {
                 g.FillRectangle(red, -18, -48 + sleepDrop, 36, 7);
-                g.FillEllipse(Brushes.Gold, -3.5f, -45 + sleepDrop, 7, 7);
+                g.FillEllipse(Brushes.Gold, -4f, -45 + sleepDrop, 8, 8);
+                g.DrawEllipse(goldBorder, -4f, -45 + sleepDrop, 8, 8);
             }
 
             DrawSantaHat(g, 0, -86 + sleepDrop, 0.92f);
 
-            // Truco específico del Perrito: Sostiene/atrapa un huesito navideño con moño rojo
+            // Truco específico del Beagle: Sostiene/atrapa un huesito navideño con moño rojo
             if (trick)
             {
                 float boneY = -55f + (float)Math.Sin(animTick * 0.55f) * 3f;
@@ -3208,6 +3236,7 @@ namespace NavidadCompanero
 
             bool openConfig = false;
             bool uninstall = false;
+            bool isAutostart = false;
 
             if (args != null)
             {
@@ -3215,6 +3244,7 @@ namespace NavidadCompanero
                 {
                     if (a.Equals("--config", StringComparison.OrdinalIgnoreCase)) openConfig = true;
                     if (a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)) uninstall = true;
+                    if (a.Equals("--autostart", StringComparison.OrdinalIgnoreCase)) isAutostart = true;
                 }
             }
 
@@ -3234,6 +3264,11 @@ namespace NavidadCompanero
             {
                 if (!createdNew)
                 {
+                    if (isAutostart && !openConfig)
+                    {
+                        return;
+                    }
+
                     try
                     {
                         using (System.Threading.EventWaitHandle evt = System.Threading.EventWaitHandle.OpenExisting("NavidadCompaneroShowPanelEvent"))
