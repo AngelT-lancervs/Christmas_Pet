@@ -90,11 +90,33 @@ namespace NavidadCompanero
             return result;
         }
 
+        // Repara textos dañados por una mala codificación (ej. "NavideÃ±o" -> "Navideño")
+        private bool neededRepair = false;
+
+        private static string FixMojibake(string s, ref bool repaired)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            try
+            {
+                System.Text.Encoding latin = System.Text.Encoding.GetEncoding(1252);
+                for (int i = 0; i < 3 && (s.IndexOf('\u00C3') >= 0 || s.IndexOf('\u00C2') >= 0); i++)
+                {
+                    string fixedText = System.Text.Encoding.UTF8.GetString(latin.GetBytes(s));
+                    if (fixedText.IndexOf('\uFFFD') >= 0 || fixedText == s) break;
+                    s = fixedText;
+                    repaired = true;
+                }
+            }
+            catch { }
+            return s;
+        }
+
         private static AppConfig ParseFile(string path)
         {
             AppConfig cfg = new AppConfig();
-            foreach (string line in File.ReadAllLines(path))
+            foreach (string rawLine in File.ReadAllLines(path, System.Text.Encoding.UTF8))
             {
+                string line = FixMojibake(rawLine, ref cfg.neededRepair);
                 int eq = line.IndexOf('=');
                 if (eq > 0)
                 {
@@ -152,6 +174,14 @@ namespace NavidadCompanero
 
             if (best == null) return new AppConfig();
 
+            // Si el archivo tenía letras dañadas (ñ, ü, tildes), se guarda ya corregido en todas las copias
+            if (best.neededRepair)
+            {
+                best.neededRepair = false;
+                best.Save();
+                return best;
+            }
+
             // Propaga la copia ganadora a las demás que estén desactualizadas
             foreach (string path in GetAllConfigPaths())
             {
@@ -200,7 +230,7 @@ namespace NavidadCompanero
                     try
                     {
                         string dir = Path.GetDirectoryName(path);
-                        if (Directory.Exists(dir)) File.WriteAllLines(path, arr);
+                        if (Directory.Exists(dir)) File.WriteAllLines(path, arr, new System.Text.UTF8Encoding(false));
                     }
                     catch { }
                 }
