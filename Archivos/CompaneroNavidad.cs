@@ -18,6 +18,9 @@ namespace NavidadCompanero
         public bool ShowIntroOnStart = true;
         public bool GhostMode = false;
         public bool StayInPlace = false;
+        // Posición guardada cuando la mascota está fija en pantalla (int.MinValue = sin posición)
+        public int PinnedX = int.MinValue;
+        public int PinnedY = int.MinValue;
         public bool DisableAutoMessages = false;
         public int ScalePercent = 100; // 50% a 180%
         public Dictionary<string, string> PetNames = new Dictionary<string, string>();
@@ -127,6 +130,8 @@ namespace NavidadCompanero
                     else if (k == "ShowIntroOnStart") bool.TryParse(v, out cfg.ShowIntroOnStart);
                     else if (k == "GhostMode") bool.TryParse(v, out cfg.GhostMode);
                     else if (k == "StayInPlace") bool.TryParse(v, out cfg.StayInPlace);
+                    else if (k == "PinnedX") { int px; if (int.TryParse(v, out px)) cfg.PinnedX = px; }
+                    else if (k == "PinnedY") { int py; if (int.TryParse(v, out py)) cfg.PinnedY = py; }
                     else if (k == "DisableAutoMessages") bool.TryParse(v, out cfg.DisableAutoMessages);
                     else if (k == "ScalePercent")
                     {
@@ -216,6 +221,8 @@ namespace NavidadCompanero
                 lines.Add("ShowIntroOnStart=" + ShowIntroOnStart);
                 lines.Add("GhostMode=" + GhostMode);
                 lines.Add("StayInPlace=" + StayInPlace);
+                lines.Add("PinnedX=" + PinnedX);
+                lines.Add("PinnedY=" + PinnedY);
                 lines.Add("DisableAutoMessages=" + DisableAutoMessages);
                 lines.Add("ScalePercent=" + ScalePercent);
                 foreach (var kv in PetNames)
@@ -1179,6 +1186,7 @@ namespace NavidadCompanero
         // Física y posición (con delta-time a 60 FPS reales)
         private float posX, posY;
         private float customGroundY = -1f; // Permite dejar a la mascota fija en cualquier lugar de la pantalla si StayInPlace está activo
+        private bool hasPinnedPos = false; // true si customGroundY es válido (puede ser negativo en monitores superiores o cerca del borde)
         private float velX = 2.0f, velY = 0f;
         private bool facingRight = true;
         private PetState state = PetState.Falling;
@@ -1281,6 +1289,25 @@ namespace NavidadCompanero
             Rectangle workArea = Screen.PrimaryScreen.WorkingArea;
             posX = workArea.Right - CanvasW - 100;
             posY = workArea.Bottom - CanvasH - 160;
+
+            // Si estaba fija en pantalla, restaurar la posición guardada (si sigue dentro de algún monitor)
+            if (config.StayInPlace && config.PinnedX != int.MinValue && config.PinnedY != int.MinValue)
+            {
+                Point feet = new Point(config.PinnedX + CanvasW / 2, config.PinnedY + CanvasH - 40);
+                foreach (Screen s in Screen.AllScreens)
+                {
+                    if (s.Bounds.Contains(feet))
+                    {
+                        posX = config.PinnedX;
+                        posY = config.PinnedY;
+                        customGroundY = posY;
+                        hasPinnedPos = true;
+                        state = PetState.Idle;
+                        stateTimer = 60;
+                        break;
+                    }
+                }
+            }
             this.Location = new Point((int)posX, (int)posY);
 
             SayGreeting("¡Feliz Navidad!");
@@ -1666,32 +1693,7 @@ namespace NavidadCompanero
                 isMouseDown = false;
                 if (isDragging)
                 {
-                    isDragging = false;
-                    float groundY = GetGroundYAt(posX);
-
-                    if (config.StayInPlace)
-                    {
-                        // Si está activado "Quedarse en su sitio", se queda exactamente donde el usuario la soltó (en cualquier monitor)
-                        customGroundY = posY;
-                        velX = 0;
-                        velY = 0;
-                        state = PetState.Idle;
-                        stateTimer = 60;
-                    }
-                    else
-                    {
-                        customGroundY = -1f;
-                        if (posY < groundY - 5)
-                        {
-                            state = PetState.Falling;
-                        }
-                        else
-                        {
-                            posY = groundY;
-                            state = PetState.Idle;
-                            stateTimer = 55;
-                        }
-                    }
+                    FinishDrag();
                 }
                 else
                 {
@@ -1726,7 +1728,14 @@ namespace NavidadCompanero
             int minLeft, maxRight, totalSpanW;
             GetMultiMonitorSpan(out minLeft, out maxRight, out totalSpanW);
             float taskbarGroundY = GetGroundYAt(posX);
-            float groundY = (config.StayInPlace && customGroundY >= 0f) ? customGroundY : taskbarGroundY;
+
+            // Seguridad: si se soltó el botón fuera de la ventana y no llegó el MouseUp, terminar el arrastre igual
+            if (isDragging && (Control.MouseButtons & MouseButtons.Left) == 0)
+            {
+                FinishDrag();
+            }
+
+            float groundY = (config.StayInPlace && hasPinnedPos) ? customGroundY : taskbarGroundY;
             float primaryW = Screen.PrimaryScreen.WorkingArea.Width;
             // Escala de velocidad física proporcional al ancho de un monitor estándar (1.0 en 1920x1080)
             float resFactor = Math.Max(0.70f, Math.Min(2.2f, primaryW / 1920f));
@@ -1754,6 +1763,7 @@ namespace NavidadCompanero
                         state = PetState.Idle;
                         stateTimer = 50;
                         SpawnParticles(ParticleKind.Snowflake, Color.White, 5);
+                        if (config.StayInPlace && !hasPinnedPos) PinCurrentPosition();
                     }
                 }
                 else if (state == PetState.Jumping)
@@ -1828,17 +1838,67 @@ namespace NavidadCompanero
         public void SetStayInPlace(bool stay)
         {
             config.StayInPlace = stay;
-            config.Save();
             if (stay)
             {
-                customGroundY = posY;
-                if (state == PetState.Walking) state = PetState.Idle;
+                PinCurrentPosition();
+                if (state == PetState.Walking || state == PetState.Falling || state == PetState.Jumping)
+                {
+                    state = PetState.Idle;
+                    stateTimer = 60;
+                    velX = 0;
+                    velY = 0;
+                }
             }
             else
             {
                 customGroundY = -1f;
+                hasPinnedPos = false;
+                config.Save();
                 float taskbarGroundY = GetGroundYAt(posX);
                 if (posY < taskbarGroundY - 5) state = PetState.Falling;
+            }
+        }
+
+        // Guarda la posición actual como "sitio fijo" (también en config.ini para que se mantenga al reiniciar)
+        private void PinCurrentPosition()
+        {
+            customGroundY = posY;
+            hasPinnedPos = true;
+            config.PinnedX = (int)Math.Round(posX);
+            config.PinnedY = (int)Math.Round(posY);
+            config.Save();
+        }
+
+        // Al soltar la mascota tras arrastrarla
+        private void FinishDrag()
+        {
+            isDragging = false;
+            isMouseDown = false;
+            float groundY = GetGroundYAt(posX);
+
+            if (config.StayInPlace)
+            {
+                // Se queda exactamente donde el usuario la soltó (en cualquier monitor y a cualquier altura)
+                velX = 0;
+                velY = 0;
+                state = PetState.Idle;
+                stateTimer = 60;
+                PinCurrentPosition();
+            }
+            else
+            {
+                customGroundY = -1f;
+                hasPinnedPos = false;
+                if (posY < groundY - 5)
+                {
+                    state = PetState.Falling;
+                }
+                else
+                {
+                    posY = groundY;
+                    state = PetState.Idle;
+                    stateTimer = 55;
+                }
             }
         }
 
